@@ -1014,7 +1014,38 @@ fourvzgnfnhkkp2
 j47three8sevenfivenfkd
 twotwo4seven1fqklblqbdxcmtch`
 
-var digits = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+const data2 = `two1nine
+eightwothree
+abcone2threexyz
+xtwone3four
+4nineeightseven2
+zoneight234
+7pqrstsixteen`
+
+var digits = []string{
+	"0",
+	"1",
+	"2",
+	"3",
+	"4",
+	"5",
+	"6",
+	"7",
+	"8",
+	"9",
+}
+
+var digitsLong = []string{
+	"one",
+	"two",
+	"three",
+	"four",
+	"five",
+	"six",
+	"seven",
+	"eight",
+	"nine",
+}
 
 func isDigitValue(d string) (bool, int) {
 	for i, ch := range digits {
@@ -1026,11 +1057,36 @@ func isDigitValue(d string) (bool, int) {
 	return false, -1
 }
 
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
+func isDigitLongValue(d string, pos int) (bool, int) {
+	for i, digitWord := range digitsLong {
+		if d[pos:min(len(d), pos+len(digitWord))] == digitWord {
+			return true, i + 1
+		}
+	}
+
+	return false, -1
+}
+
 func getNums(l string) (int, error) {
 	// first digit
 	firstDigit := -1
 
-	for _, ch := range l {
+	for i, ch := range l {
+		isDigitLong, value := isDigitLongValue(l, i)
+		if isDigitLong {
+			firstDigit = value
+
+			break
+		}
+
 		isDigit, value := isDigitValue(string(ch))
 		if isDigit {
 			firstDigit = value
@@ -1043,6 +1099,13 @@ func getNums(l string) (int, error) {
 	lastDigit := -1
 
 	for j := len(l) - 1; j >= 0; j-- {
+		isDigitLong, value := isDigitLongValue(l, j)
+		if isDigitLong {
+			lastDigit = value
+
+			break
+		}
+
 		isDigit, value := isDigitValue(string(l[j]))
 		if isDigit {
 			lastDigit = value
@@ -1072,6 +1135,7 @@ func doLines(text string) error {
 			total += N
 		} else {
 			fmt.Println("Got error", err)
+
 			return err
 		}
 	}
@@ -1090,5 +1154,10 @@ func main() {
 	err = doLines(data1)
 	if err != nil {
 		fmt.Println("data1 got err", err)
+	}
+
+	err = doLines(data2)
+	if err != nil {
+		fmt.Println("data2", data2, "got err", err)
 	}
 }
