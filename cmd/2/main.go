@@ -168,7 +168,7 @@ func handleOneColor(section string) (int, int, error) {
 
 	segs := strings.SplitN(section, " ", two)
 	if len(segs) != two {
-		return -1, -1, newParseSectionError("Couldn't parse" + section)
+		return -1, -1, newParseSectionError("Couldn't find space parse" + section)
 	}
 
 	c, err := getColor(segs[1])
@@ -202,10 +202,31 @@ func handleRound(round string) (bool, error) {
 	return false, nil
 }
 
+// handleRound2 returns max.
+func handleRound2(round string) ([]int, error) {
+	segs := strings.Split(round, ",")
+	colCount := make([]int, len(colors))
+
+	if len(segs) > len(colors) {
+		return colCount, newParseSectionError("Too many colors " + round)
+	}
+
+	for _, s := range segs {
+		n, c, err := handleOneColor(s)
+		if err != nil {
+			return colCount, err
+		}
+
+		colCount[c] = n
+	}
+
+	return colCount, nil
+}
+
 func handleGame(game string) (int, bool, error) {
 	segs := strings.SplitN(game, ":", two)
 	if len(segs) != two {
-		return -1, false, newParseGameError("Couldn't parse" + game)
+		return -1, false, newParseGameError("Couldn't work out colo parse" + game)
 	}
 
 	if !strings.HasPrefix(segs[0], "Game ") {
@@ -234,6 +255,41 @@ func handleGame(game string) (int, bool, error) {
 	return id, excessiveRoundFound, nil
 }
 
+func handleGame2(game string) (int, error) {
+	segs := strings.SplitN(game, ":", two)
+	if len(segs) != two {
+		return -1, newParseGameError("Couldn't find colon parse" + game)
+	}
+
+	if !strings.HasPrefix(segs[0], "Game ") {
+		return -1, newParseGameError("Couldn't find Game" + game)
+	}
+
+	max := make([]int, len(colors))
+
+	rounds := strings.Split(segs[1], ";")
+	for _, r := range rounds {
+		colCount, err := handleRound2(r)
+		if err != nil {
+			return -1, err
+		}
+
+		for i := 0; i < len(colors); i++ {
+			if colCount[i] > max[i] {
+				max[i] = colCount[i]
+			}
+		}
+	}
+
+	total := 1
+
+	for i := 0; i < len(colors); i++ {
+		total *= max[i]
+	}
+
+	return total, nil
+}
+
 func doLines(text string) error {
 	lines := strings.Split(text, "\n")
 	total := 0
@@ -254,6 +310,24 @@ func doLines(text string) error {
 	return nil
 }
 
+func doLines2(text string) error {
+	lines := strings.Split(text, "\n")
+	total := 0
+
+	for _, l := range lines {
+		power, err := handleGame2(l)
+		if err == nil {
+			total += power
+		} else {
+			return err
+		}
+	}
+
+	fmt.Println("Total is ", total)
+
+	return nil
+}
+
 func main() {
 	err := doLines(data0)
 	if err != nil {
@@ -261,6 +335,16 @@ func main() {
 	}
 
 	err = doLines(data1)
+	if err != nil {
+		fmt.Println("data1 got err", err)
+	}
+
+	err = doLines2(data0)
+	if err != nil {
+		fmt.Println("data0", data0, "got err", err)
+	}
+
+	err = doLines2(data1)
 	if err != nil {
 		fmt.Println("data1 got err", err)
 	}
