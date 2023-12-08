@@ -24,7 +24,8 @@ const (
 )
 
 const (
-	card2 = iota
+	cardJ = iota
+	card2
 	card3
 	card4
 	card5
@@ -33,7 +34,6 @@ const (
 	card8
 	card9
 	cardT
-	cardJ
 	cardQ
 	cardK
 	cardA
@@ -41,6 +41,7 @@ const (
 )
 
 var cardMapping = map[string]int8{
+	"J": cardJ,
 	"2": card2,
 	"3": card3,
 	"4": card4,
@@ -50,7 +51,6 @@ var cardMapping = map[string]int8{
 	"8": card8,
 	"9": card9,
 	"T": cardT,
-	"J": cardJ,
 	"Q": cardQ,
 	"K": cardK,
 	"A": cardA,
@@ -60,7 +60,7 @@ const (
 	handSize = 5
 )
 
-type cardTypesCount [maxCard]int64
+type cardTypesCount [maxCard]uint64
 
 type card struct {
 	value int8
@@ -1078,8 +1078,7 @@ A5A55 707
 84484 762
 3A337 114
 A33J3 675
-5T694 609
-`
+5T694 609`
 
 var errParseLine = errors.New("parse line failed")
 
@@ -1093,19 +1092,23 @@ func newParseCardError(msg string) error {
 	return fmt.Errorf("%w: %s", errParseCard, msg)
 }
 
-func cardsToCardTypeCount(cards [handSize]card) cardTypesCount {
+func cardsToCardTypeCount(cards [handSize]card) (cardTypesCount, uint64) {
 	count := cardTypesCount{}
+	jokers := uint64(0)
 
 	for _, c := range cards {
+		if c.value == cardJ {
+			jokers++
+		}
 		count[c.value]++
 	}
 
-	return count
+	return count, jokers
 }
 
-func fiveOfAKind(count cardTypesCount) bool {
+func fiveOfAKind(count cardTypesCount, jokers uint64) bool {
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 5 { //nolint:gomnd
+		if count[i]+jokers >= 5 { //nolint:gomnd
 			return true
 		}
 	}
@@ -1113,14 +1116,16 @@ func fiveOfAKind(count cardTypesCount) bool {
 	return false
 }
 
-func fourOfAKind(count cardTypesCount) bool {
+func fourOfAKind(count cardTypesCount, jokers uint64) bool {
 	found4 := false
 	found1 := false
 
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 4 { //nolint:gomnd
+		if count[i]+jokers >= 4 { //nolint:gomnd
 			found4 = true
-		} else if count[i] >= 1 {
+			jokers = -(4 - count[i]) // nolint:gomnd
+		} else if count[i]+jokers >= 1 {
+			jokers -= (1 - count[i])
 			found1 = true
 		}
 	}
@@ -1128,14 +1133,16 @@ func fourOfAKind(count cardTypesCount) bool {
 	return found1 && found4
 }
 
-func fullHouse(count cardTypesCount) bool {
+func fullHouse(count cardTypesCount, jokers uint64) bool {
 	found3 := false
 	found2 := false
 
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 3 { //nolint:gomnd
+		if count[i]+jokers >= 3 { //nolint:gomnd
 			found3 = true
-		} else if count[i] >= 2 { //nolint:gomnd
+			jokers -= (3 - count[i]) // nolint:gomnd
+		} else if count[i]+jokers >= 2 { //nolint:gomnd
+			jokers -= (2 - count[i]) // nolint:gomnd
 			found2 = true
 		}
 	}
@@ -1143,9 +1150,9 @@ func fullHouse(count cardTypesCount) bool {
 	return found2 && found3
 }
 
-func threeOfAKind(count cardTypesCount) bool {
+func threeOfAKind(count cardTypesCount, jokers uint64) bool {
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 3 { //nolint:gomnd
+		if count[i]+jokers >= 3 { //nolint:gomnd
 			return true
 		}
 	}
@@ -1153,15 +1160,17 @@ func threeOfAKind(count cardTypesCount) bool {
 	return false
 }
 
-func twoPair(count cardTypesCount) bool {
+func twoPair(count cardTypesCount, jokers uint64) bool {
 	found2a := false
 	found2b := false
 
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 2 { //nolint:gomnd
+		if count[i]+jokers >= 2 { //nolint:gomnd
 			if !found2a {
+				jokers -= (2 - count[i]) // nolint:gomnd
 				found2a = true
 			} else {
+				jokers -= (2 - count[i]) // nolint:gomnd
 				found2b = true
 			}
 		}
@@ -1170,9 +1179,9 @@ func twoPair(count cardTypesCount) bool {
 	return found2a && found2b
 }
 
-func onePair(count cardTypesCount) bool {
+func onePair(count cardTypesCount, jokers uint64) bool {
 	for i := 0; i < len(count); i++ {
-		if count[i] >= 2 { //nolint:gomnd
+		if count[i]+jokers >= 2 { //nolint:gomnd
 			return true
 		}
 	}
@@ -1180,9 +1189,9 @@ func onePair(count cardTypesCount) bool {
 	return false
 }
 
-func highCard(count cardTypesCount) bool {
+func highCard(count cardTypesCount, jokers uint64) bool {
 	for i := 0; i < len(count); i++ {
-		if count[i] > 1 {
+		if count[i]+jokers > 1 {
 			return false
 		}
 	}
@@ -1190,7 +1199,7 @@ func highCard(count cardTypesCount) bool {
 	return true
 }
 
-var handEvaluators = []func(cardTypesCount) bool{
+var handEvaluators = []func(cardTypesCount, uint64) bool{
 	fiveOfAKind,
 	fourOfAKind,
 	fullHouse,
@@ -1200,18 +1209,16 @@ var handEvaluators = []func(cardTypesCount) bool{
 	highCard,
 }
 
-func scoreHand(h *hand) int {
-	fmt.Println("Evaluating", h)
-	count := cardsToCardTypeCount(h.cards)
+func scoreHand(h *hand, jokersWild bool) int {
+	count, jokers := cardsToCardTypeCount(h.cards)
 
-	fmt.Println("Counts", count)
+	if !jokersWild {
+		jokers = 0
+	}
 
 	for i, checker := range handEvaluators {
-		fmt.Println("Checking", i)
 		// have to check the hands from most powerful to least
-		if checker(count) {
-			fmt.Println("Got hit on", i, &checker) //nolint:gosec
-
+		if checker(count, jokers) {
 			return len(handEvaluators) - i
 		}
 	}
@@ -1240,7 +1247,11 @@ func parseCards(cards string) ([handSize]card, error) {
 func handleLine(line string, hands *[]*hand) error {
 	parts := strings.Split(line, " ")
 	if len(parts) > two {
-		return newParseLineError("too many sections for line")
+		return newParseLineError("too many sections for line" + line)
+	}
+
+	if len(parts) < two {
+		return newParseLineError("too few sections for line" + line)
 	}
 
 	h := hand{}
@@ -1268,14 +1279,12 @@ func handleLine(line string, hands *[]*hand) error {
 	return nil
 }
 
-func analyzeHands(hands []*hand) uint64 {
+func analyzeHands(hands []*hand, jokersWild bool) uint64 {
 	for _, h := range hands {
-		h.score = scoreHand(h)
-		fmt.Println("Got hand", h, h.score)
+		h.score = scoreHand(h, jokersWild)
 	}
 
 	sort.Slice(hands, func(i, j int) bool {
-		fmt.Println("Got comparison,", hands[i], hands[j])
 		if hands[i].score > hands[j].score {
 			return true
 		} else if hands[i].score < hands[j].score {
@@ -1297,15 +1306,16 @@ func analyzeHands(hands []*hand) uint64 {
 
 	lenHands := len(hands)
 	for rank, h := range hands {
+		fmt.Println("rank, h", rank, h.raw)
+
 		numOpts := uint64(lenHands-rank) * h.bid
 		sum += numOpts
-		fmt.Println("Hand is", h.raw, rank, h.bid, h.score, "adding", numOpts)
 	}
 
 	return sum
 }
 
-func doLines(text string) error {
+func doLines(text string, jokersWild bool) error {
 	lines := strings.Split(text, "\n")
 
 	hands := make([]*hand, 0, len(lines))
@@ -1317,7 +1327,7 @@ func doLines(text string) error {
 		}
 	}
 
-	total := analyzeHands(hands)
+	total := analyzeHands(hands, jokersWild)
 
 	fmt.Println("Total is ", total)
 
@@ -1325,24 +1335,23 @@ func doLines(text string) error {
 }
 
 func main() {
-	err := doLines(data0)
+	err := doLines(data0, false)
 	if err != nil {
 		fmt.Println("data0", data0, "got err", err)
 	}
 
-	err = doLines(data1)
+	err = doLines(data1, false)
+	if err != nil {
+		fmt.Println("data1", data1, "got err", err)
+	}
+
+	err = doLines(data0, true)
+	if err != nil {
+		fmt.Println("data0", data0, "got err", err)
+	}
+
+	err = doLines(data1, true)
 	if err != nil {
 		fmt.Println("data1", data1, "got err", err)
 	}
 }
-
-/*
-err = doLines(data0, true)
-if err != nil {
-	fmt.Println("data0", data0, "got err", err)
-}
-
-err = doLines(data1, true)
-if err != nil {
-	fmt.Println("data1", data1, "got err", err)
-}*/
