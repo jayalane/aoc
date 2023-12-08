@@ -34,7 +34,7 @@ func newParseLineError(msg string) error {
 	return fmt.Errorf("%w: %s", errParseLine, msg)
 }
 
-func handleLine(line string, races *[]race, skipSpaces bool) error {
+func handleLine(line string, races *[]race, skipSpaces bool) error { //nolint:cyclop
 	theFieldStr := ""
 
 	for k := range fields {
@@ -58,11 +58,12 @@ func handleLine(line string, races *[]race, skipSpaces bool) error {
 	if skipSpaces {
 		numbers = strings.ReplaceAll(numbers, " ", "")
 	}
-	
+
 	for i, n := range strings.Split(numbers, " ") {
 		if skipSpaces && i > 1 {
 			return newParseLineError("SkipSpaces has 2 races" + line)
 		}
+
 		if n == "" {
 			continue
 		}
@@ -77,6 +78,7 @@ func handleLine(line string, races *[]race, skipSpaces bool) error {
 		if len((*races)) < j+1 {
 			(*races) = append((*races), race{})
 		}
+
 		fmt.Println("Races len, j", len(*races), j)
 		(*races)[j].fields[fields[theFieldStr]] = N
 
@@ -109,6 +111,7 @@ func analyzeRaces(races []race) uint64 {
 	fmt.Println("Races are")
 
 	product := uint64(1)
+
 	for _, r := range races {
 		numOpts := countOptions(r)
 		product *= numOpts
@@ -147,6 +150,7 @@ func main() {
 	if err != nil {
 		fmt.Println("data1", data1, "got err", err)
 	}
+
 	err = doLines(data0, true)
 	if err != nil {
 		fmt.Println("data0", data0, "got err", err)
